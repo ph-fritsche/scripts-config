@@ -1,29 +1,20 @@
-import type { params, script, stringMap } from 'shared-scripts'
-import { sync } from 'cross-spawn'
+import { params, run, script, stringMap } from 'shared-scripts'
+import { execScript } from './util'
 
-const script: script = {
+export const tsBuild: script = {
     options: {
         outDir: {
             description: 'Where to redirect the output',
             value: ['dir'],
         },
     },
-    run: (params: params) => {
+    run: async (params: params) => {
         const outDir = (params.options?.outDir as stringMap)?.dir ?? 'dist'
 
         execScript(['tsc', '--outDir', outDir, '--target', 'ES6', '--sourceMap', 'false'])
-        execScript(['scripts', 'rename', '--in', outDir, '\\.js(\\.|$)', '.esm.js$1'])
+
+        await run('rename', ['-r', '--in', outDir, '^([^.]+)\\.js(\\.|$)', '$1.esm.js$2'])
+
         execScript(['tsc', '--outDir', outDir, '--target', 'ES3', '--declaration', 'false'])
     },
 }
-
-function execScript(args: string[]) {
-    const child = sync('yarn', args)
-    process.stdout.write(child.stdout)
-    process.stderr.write(child.stderr)
-    if (child.status) {
-        process.exit(1)
-    }
-}
-
-export default script

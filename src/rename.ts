@@ -2,7 +2,7 @@ import fs from 'fs'
 import process from 'process'
 import type { params, script, stringMap } from 'shared-scripts'
 
-const script: script = {
+export const rename: script = {
     description: 'Rename files per RegExp',
     options: {
         in: {
@@ -64,4 +64,3 @@ const script: script = {
         }
     },
 }
-export default script
