@@ -1,4 +1,4 @@
-import { mkdir, readdir, rm, writeFile } from 'fs/promises'
+import { mkdir, readdir, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { run } from 'shared-scripts'
