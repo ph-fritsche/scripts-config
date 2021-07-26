@@ -1,4 +1,4 @@
-import { params, run, script, stringMap } from 'shared-scripts'
+import { params, script, stringMap } from 'shared-scripts'
 import { execScript } from './util'
 
 export const tsBuild: script = {
@@ -11,10 +11,23 @@ export const tsBuild: script = {
     run: async (params: params) => {
         const outDir = (params.options?.outDir as stringMap)?.dir ?? 'dist'
 
-        execScript(['tsc', '--outDir', outDir, '--target', 'ES6', '--sourceMap', 'false'])
-
-        await run('rename', ['-r', '--in', outDir, '^([^.]+)\\.js(\\.|$)', '$1.esm.js$2'])
-
-        execScript(['tsc', '--outDir', outDir, '--target', 'ES3', '--declaration', 'false'])
+        execScript(['tsc',
+            '--outDir', `${outDir}/esm`,
+            '--target', 'ES6',
+            '--sourceMap', 'true',
+            '--declaration', 'false',
+        ])
+        execScript(['tsc',
+            '--outDir', `${outDir}/cjs`,
+            '--target', 'ES5',
+            '--sourceMap', 'true',
+            '--declaration', 'false',
+        ])
+        execScript(['tsc',
+            '--outDir', `${outDir}/types`,
+            '--declaration', 'true',
+            '--declarationMap', 'true',
+            '--emitDeclarationOnly',
+        ])
     },
 }
