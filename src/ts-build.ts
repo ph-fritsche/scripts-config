@@ -13,13 +13,15 @@ export const tsBuild: script = {
 
         execScript(['tsc',
             '--outDir', `${outDir}/esm`,
-            '--target', 'ES6',
+            '--target', 'ES2020',
+            '--module', 'ES2020',
             '--sourceMap', 'true',
             '--declaration', 'false',
         ])
         execScript(['tsc',
             '--outDir', `${outDir}/cjs`,
             '--target', 'ES5',
+            '--module', 'CommonJS',
             '--sourceMap', 'true',
             '--declaration', 'false',
         ])
