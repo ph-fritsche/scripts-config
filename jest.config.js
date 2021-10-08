@@ -19,4 +19,7 @@ module.exports = {
     setupFiles: [
         '<rootDir>/test/_setup.ts',
     ],
+    snapshotSerializers: [
+        'jest-snapshot-serializer-raw/always',
+    ],
 }
