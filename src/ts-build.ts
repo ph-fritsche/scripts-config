@@ -34,6 +34,8 @@ export const tsBuild: script = {
             '--sourceMap', 'true',
             '--declaration', 'false',
         ])
+        writePackageType(`${outDir}/esm/package.json`, 'module')
+
         execScript(['tsc',
             '--outDir', `${outDir}/cjs`,
             '--target', 'ES5',
@@ -41,6 +43,8 @@ export const tsBuild: script = {
             '--sourceMap', 'true',
             '--declaration', 'false',
         ])
+        writePackageType(`${outDir}/cjs/package.json`, 'commonjs')
+
         execScript(['tsc',
             '--outDir', `${outDir}/types`,
             '--declaration', 'true',
@@ -50,6 +54,14 @@ export const tsBuild: script = {
 
         updatePackageJson(packageJsonFile, outDir, main, exportsMap)
     },
+}
+
+function writePackageType(
+    packageJsonFile: string,
+    type: 'commonjs'|'module',
+) {
+    const packageJson = { type }
+    fs.writeFileSync(packageJsonFile, JSON.stringify(packageJson, null, 2))
 }
 
 function updatePackageJson(
