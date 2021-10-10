@@ -17,6 +17,7 @@
         "@ph.fritsche/eslint-config": "^0.1.1",
         "@types/cross-spawn": "^6.0.2",
         "@types/jest": "^26.0.24",
+        "esbuild": "^0.13.4",
         "eslint": "^7.31.0",
         "jest": "^27.0.6",
         "jest-snapshot-serializer-raw": "^1.2.0",

@@ -1,0 +1,6 @@
+{
+    "scripts": {
+        "esbuild": "../node_modules/.bin/esbuild",
+        "tsc": "../node_modules/.bin/tsc"
+    }
+}

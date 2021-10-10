@@ -16,9 +16,20 @@ jobs:
       with:
         file: ./coverage/lcov.info
 
+  verifyTsBuild:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: bahmutov/npm-install@v1
+    - run: yarn build
+    - run: ./testConsumer/build.sh
+    - run: ./testConsumer/test.sh
+
   release:
     if: github.event_name == 'push'
-    needs: check
+    needs:
+      - check
+      - verifyTsBuild
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
