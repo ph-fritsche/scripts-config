@@ -83,7 +83,7 @@ function updatePackageJson(
 
     newPackageJson.main = `./${outDir}/cjs/${main}.js`
     newPackageJson.module = `./${outDir}/esm/${main}.js`
-    newPackageJson.types = `./${outDir}/types/${main}.js`
+    newPackageJson.types = `./${outDir}/types/${main}.d.ts`
 
     if (exportsMap.length > 0) {
         newPackageJson.exports = Object.fromEntries([

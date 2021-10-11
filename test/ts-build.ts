@@ -50,7 +50,7 @@ test('update package.json', async () => {
     },
     "main": "./dist/cjs/index.js",
     "module": "./dist/esm/index.js",
-    "types": "./dist/types/index.js",
+    "types": "./dist/types/index.d.ts",
     "exports": {
         ".": {
             "import": "./dist/esm/index.js",
