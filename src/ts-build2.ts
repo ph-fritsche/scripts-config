@@ -228,7 +228,10 @@ async function buildTypes(
     typesPath: string,
     files: string[],
 ) {
-    const tmpFile = tmp.fileSync()
+    const tmpFile = tmp.fileSync({
+        tmpdir: path.dirname(tsconfigFile),
+        prefix: 'tsconfig.tmp',
+    })
     fs.writeFileSync(tmpFile.name, JSON.stringify({
         extends: path.resolve(tsconfigFile),
         include: files.map(f => path.resolve(f)),
@@ -239,5 +242,5 @@ async function buildTypes(
         '--outDir', typesPath,
         '--declaration', 'true',
         '--emitDeclarationOnly',
-    ])
+    ]).finally(tmpFile.removeCallback)
 }

@@ -52,7 +52,7 @@ describe('dualExport', () => {
         await run('ts-build2', ['--cjs', '--exportsMap', 'foo/*,bar:some/other/file'], scriptsConfig)
         buildComplete = true
         expect.assertions(0)
-    })
+    }, 10000)
 
     describe('assert on build', () => {
         beforeEach(() => {
@@ -181,7 +181,7 @@ describe('default build', () => {
         await run('ts-build2', ['--exportsMap', 'foo/*,bar:some/other/file'], scriptsConfig)
         buildComplete = true
         expect.assertions(0)
-    })
+    }, 10000)
 
     describe('assert on build', () => {
         beforeEach(() => {
