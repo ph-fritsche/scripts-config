@@ -84,7 +84,11 @@ export const tsBuild2: script = {
 
         await build({
             input: buildFiles,
-            external: Object.keys(packageJson.dependencies ?? {}),
+            external: [
+                ...Object.keys(packageJson.dependencies ?? {}),
+                ...Object.keys(packageJson.optionalDependencies ?? {}),
+                ...Object.keys(packageJson.peerDependencies ?? {}),
+            ],
             plugins: [
                 swc({
                     exclude: [
