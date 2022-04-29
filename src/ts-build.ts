@@ -1,5 +1,6 @@
 import fs from 'fs'
 import { params, script, stringMap } from 'shared-scripts'
+import { PackageJson } from './package.json'
 import { execScript } from './util'
 
 export const tsBuild: script = {
@@ -21,7 +22,7 @@ export const tsBuild: script = {
             value: ['paths'],
         },
     },
-    run: async (params: params) => {
+    run: (params: params) => {
         const outDir = (params.options?.outDir as stringMap)?.dir ?? 'dist'
         const packageJsonFile = (params.options.packageJson as stringMap)?.file ?? 'package.json'
         const main = (params.options.main as stringMap)?.file ?? 'index'
@@ -72,7 +73,7 @@ function updatePackageJson(
 ) {
     const packageJsonString = String(fs.readFileSync(packageJsonFile))
     const indent = packageJsonString.match(/^(\s+)/m)?.[1] || 2
-    const packageJson = JSON.parse(packageJsonString)
+    const packageJson = JSON.parse(packageJsonString) as PackageJson
 
     const newPackageJson = { ...packageJson }
     delete newPackageJson.main
@@ -90,24 +91,24 @@ function updatePackageJson(
             createExport(outDir, ['.', main].join(':')),
 
             // Always allow deep import from dist as workaround
-            [`./${outDir}/*`, `./${outDir}/*.js`],
+            [`./${outDir}/*`, `./${outDir}/*.js`] as const,
 
             ...exportsMap.map(path => createExport(outDir, path)),
         ])
         newPackageJson.typesVersions = {
             '*': Object.fromEntries([
                 // Do not map type imports from types
-                [`${outDir}/types/*`, [`./${outDir}/types/*`]],
+                [`${outDir}/types/*`, [`./${outDir}/types/*`]] as [string, string[]],
 
                 // Map deep imports from dist
-                [`${outDir}/cjs/*`, [`./${outDir}/types/*.d.ts`]],
-                [`${outDir}/esm/*`, [`./${outDir}/types/*.d.ts`]],
+                [`${outDir}/cjs/*`, [`./${outDir}/types/*.d.ts`]] as [string, string[]],
+                [`${outDir}/esm/*`, [`./${outDir}/types/*.d.ts`]] as [string, string[]],
 
                 // Map named modules
                 ...mapTypesExports(outDir, exportsMap),
 
                 // Map any other module import to the types
-                ['*', ['./dist/types/*.d.ts']],
+                ['*', ['./dist/types/*.d.ts']] as [string, string[]],
             ]),
         }
     }
@@ -118,7 +119,7 @@ function updatePackageJson(
 function createExport(
     outDir: string,
     path: string,
-) {
+): [string, string | Record<string, string>] {
     const [exportPath, modulePath = exportPath] = path.split(':')
     const distModule = (type: string, p: string) => `./${outDir}/${type}/${p}.js`
     return [

@@ -1,8 +1,10 @@
+import process from 'process'
+
 jest.mock('process', () => {
-    const process = jest.requireActual('process')
+    const realProcess = jest.requireActual<typeof process>('process')
 
     return ({
-        ...process,
+        ...realProcess,
         argv: [],
         stdin: { read: jest.fn() },
         stdout: { write: jest.fn() },

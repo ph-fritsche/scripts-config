@@ -5,7 +5,7 @@ import { run } from 'shared-scripts'
 import scriptsConfig from '../src/config'
 
 // work around for typescript
-const dynamicImport = (module: string) => import(module)
+const dynamicImport = <T>(module: string) => import(module) as Promise<T>
 const exampleDir = __dirname + '/../example'
 
 let originalPackageJson: Buffer
@@ -24,20 +24,20 @@ afterAll(async() => {
 })
 
 test('export cjs', async () => {
-    const { which } = await dynamicImport('../example/dist/cjs/foo/filename.js').catch(() => ({}))
+    const { which } = await dynamicImport<{ which: () => string }>('../example/dist/cjs/foo/filename.js')
 
     expect(which).toEqual(expect.any(Function))
     expect(which()).toEqual(realpathSync(`${__dirname}/../example/dist/cjs/foo/filename.js`))
 })
 
 test('export esm', async () => {
-    const { which } = await dynamicImport('../example/dist/esm/foo/filename.js').catch(() => ({}))
+    const { which } = await dynamicImport<{ which: () => string }>('../example/dist/esm/foo/filename.js')
 
     expect(which).toEqual(expect.any(Function))
     expect(which()).toEqual(realpathSync(`${__dirname}/../example/dist/esm/foo/filename.js`))
 })
 
-test('export declarations', async () => {
+test('export declarations', () => {
     expect(existsSync('../example/dist/types/foo/filename.d.ts')).toBe(true)
 })
 

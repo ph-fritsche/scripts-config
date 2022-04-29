@@ -1,7 +1,7 @@
-import type { config } from 'shared-scripts';
+import type { config } from 'shared-scripts'
 import { rename } from './rename'
 import { tsBuild } from './ts-build'
-import { tsBuild2 } from './ts-build2';
+import { tsBuild2 } from './ts-build2'
 
 const scriptsConfig: config = {
     scripts: {

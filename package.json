@@ -14,7 +14,7 @@
         "yarn": "*"
     },
     "devDependencies": {
-        "@ph.fritsche/eslint-config": "^0.1.1",
+        "@ph.fritsche/eslint-config": "^2.0.1",
         "@types/cross-spawn": "^6.0.2",
         "@types/estree": "^0.0.51",
         "@types/glob": "^7.2.0",
@@ -22,7 +22,7 @@
         "@types/node": "^17.0.29",
         "@types/tmp": "^0.2.3",
         "esbuild": "^0.13.4",
-        "eslint": "^7.31.0",
+        "eslint": "^8.14.0",
         "jest": "^27.0.6",
         "jest-snapshot-serializer-raw": "^1.2.0",
         "shared-scripts": "^1.4.1",

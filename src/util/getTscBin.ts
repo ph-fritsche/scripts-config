@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { sync } from 'cross-spawn';
+import { sync } from 'cross-spawn'
 
 export function getTscBin(): string {
     let d = process.cwd()

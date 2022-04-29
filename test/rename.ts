@@ -19,7 +19,7 @@ test('rename file', async () => {
 
 test('rename files recursively', async () => {
     await mkdir(`${tmpDir}/rename-recursive/bar/baz`, {recursive: true})
-    await writeFile(`${tmpDir}/rename-recursive/bar/baz/foo.txt`, 'hello, world!').catch(e => e)
+    await writeFile(`${tmpDir}/rename-recursive/bar/baz/foo.txt`, 'hello, world!')
 
     await expect(readdir(`${tmpDir}/rename-recursive/bar/baz`)).resolves.toEqual(['foo.txt'])
 

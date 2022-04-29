@@ -7,7 +7,7 @@ import process from 'process'
 
 // jest's process mock lacks methods
 jest.mock('process', () => {
-    const realProcess = jest.requireActual('process') as typeof process
+    const realProcess = jest.requireActual<typeof process>('process')
 
     return {
         ...realProcess,
@@ -25,7 +25,7 @@ jest.mock('process', () => {
 })
 
 // work around for typescript
-const dynamicImport = (module: string) => import(module)
+const dynamicImport = <T>(module: string) => import(module) as Promise<T>
 const exampleDir = __dirname + '/../example'
 
 describe('dualExport', () => {
@@ -62,20 +62,20 @@ describe('dualExport', () => {
         })
 
         test('export cjs', async () => {
-            const { which } = await dynamicImport('../example/dist/cjs/foo/filename.js').catch(() => ({}))
+            const { which } = await dynamicImport<{which: () => string}>('../example/dist/cjs/foo/filename.js')
 
             expect(which).toEqual(expect.any(Function))
             expect(which()).toEqual(realpathSync(`${__dirname}/../example/dist/cjs/foo/filename.js`))
         })
 
         test('export esm', async () => {
-            const { which } = await dynamicImport('../example/dist/esm/foo/filename.js').catch(() => ({}))
+            const { which } = await dynamicImport<{ which: () => string }>('../example/dist/esm/foo/filename.js')
 
             expect(which).toEqual(expect.any(Function))
             expect(which()).toEqual(realpathSync(`${__dirname}/../example/dist/esm/foo/filename.js`))
         })
 
-        test('export declarations', async () => {
+        test('export declarations', () => {
             expect(existsSync('../example/dist/types/foo/filename.d.ts')).toBe(true)
         })
 
@@ -190,20 +190,20 @@ describe('default build', () => {
             }
         })
 
-        test('do not export multiple module types in separate folders', async () => {
+        test('do not export multiple module types in separate folders', () => {
             expect(existsSync(`${exampleDir}/dist/cjs`)).toBe(false)
             expect(existsSync(`${exampleDir}/dist/esm`)).toBe(false)
             expect(existsSync(`${exampleDir}/dist/types`)).toBe(false)
         })
 
         test('export modules', async () => {
-            const { which } = await dynamicImport('../example/dist/foo/filename.js').catch(() => ({}))
+            const { which } = await dynamicImport<{ which: () => string }>('../example/dist/foo/filename.js')
 
             expect(which).toEqual(expect.any(Function))
             expect(which()).toEqual(realpathSync(`${__dirname}/../example/dist/foo/filename.js`))
         })
 
-        test('export declarations', async () => {
+        test('export declarations', () => {
             expect(existsSync('../example/dist/foo/filename.d.ts')).toBe(true)
         })
 

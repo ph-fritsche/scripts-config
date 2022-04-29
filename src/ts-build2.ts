@@ -6,6 +6,7 @@ import { InputOptions, OutputOptions, rollup } from 'rollup'
 import { swc, PluginOptions } from 'rollup-plugin-swc3'
 import { params, script, stringMap } from 'shared-scripts'
 import { getTscBin, globPromise, runChild } from './util'
+import { PackageJson } from './package.json'
 
 type ExportTypes = 'esm' | 'cjs' | 'types'
 
@@ -38,7 +39,7 @@ export const tsBuild2: script = {
         const exportsMap = ((params.options.exportsMap as stringMap)?.paths ?? '').split(',').filter(Boolean)
         const cjs = Boolean(params.options.cjs ?? false)
 
-        const packageJson = JSON.parse(String(fs.readFileSync(packageJsonFile)))
+        const packageJson = JSON.parse(String(fs.readFileSync(packageJsonFile))) as PackageJson
 
         const isMultiBuild = cjs
 
@@ -144,7 +145,7 @@ function updatePackageJson(
 ) {
     const packageJsonString = String(fs.readFileSync(packageJsonFile))
     const indent = packageJsonString.match(/^(\s+)/m)?.[1] || 2
-    const packageJson = JSON.parse(packageJsonString)
+    const packageJson = JSON.parse(packageJsonString) as PackageJson
 
     const newPackageJson = { ...packageJson }
     delete newPackageJson.main
@@ -162,7 +163,7 @@ function updatePackageJson(
             createExport(['.', main].join(':'), paths, hasCjs),
 
             // Always allow deep import from dist as workaround
-            [`./${outDir}/*`, `./${outDir}/*.js`],
+            [`./${outDir}/*`, `./${outDir}/*.js`] as const,
 
             ...exportsMap.map(path => createExport(path, paths, hasCjs)),
         ])
@@ -170,17 +171,17 @@ function updatePackageJson(
             newPackageJson.typesVersions = {
                 '*': Object.fromEntries([
                     // Do not map type imports from types
-                    [`${paths.types}/*`, [`./${paths.types}/*`]],
+                    [`${paths.types}/*`, [`./${paths.types}/*`]] as [string, string[]],
 
                     // Map deep imports from dist
-                    [`${paths.cjs}/*`, [`./${paths.types}/*.d.ts`]],
-                    [`${paths.esm}/*`, [`./${paths.types}/*.d.ts`]],
+                    [`${paths.cjs}/*`, [`./${paths.types}/*.d.ts`]] as [string, string[]],
+                    [`${paths.esm}/*`, [`./${paths.types}/*.d.ts`]] as [string, string[]],
 
                     // Map named modules
                     ...mapTypesExports(paths.types, exportsMap),
 
                     // Map any other module import to the types
-                    ['*', [`./${paths.types}/*.d.ts`]],
+                    ['*', [`./${paths.types}/*.d.ts`]] as [string, string[]],
                 ]),
             }
         }
@@ -193,7 +194,7 @@ function createExport(
     path: string,
     paths: { [k in ExportTypes]: string },
     hasCjs: boolean,
-) {
+): [string, string | Record<string, string>] {
     const [exportPath, modulePath = exportPath] = path.split(':')
     const distModule = (type: ExportTypes, p: string) => `./${paths[type]}/${p}.js`
 
