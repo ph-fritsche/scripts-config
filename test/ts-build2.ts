@@ -49,7 +49,7 @@ describe('dualExport', () => {
     })
 
     test('build without error', async () => {
-        await run('ts-build2', ['--cjs', '--exportsMap', 'foo/*,bar:some/other/file'], scriptsConfig)
+        await run('ts-build2', ['--cjs', '--exportsMap', 'foo/*,bar:some/other/file', '--target', 'es2019'], scriptsConfig)
         buildComplete = true
         expect.assertions(0)
     }, 10000)
@@ -143,6 +143,8 @@ describe('dualExport', () => {
         test('report matches and ignored files to console', () => {
             expect((process.stdout.write as jest.MockedFunction<typeof process.stdout.write>).mock.calls.map((c) => c[0]).join('')).toMatchInlineSnapshot(`
                 build files:
+                  src/es2020.ts                                                       [32m   [build][0m
+                  src/es2021.ts                                                       [32m   [build][0m
                   [38;5;8msrc/foo/filename.spec.ts                                            [33m  [ignore][0m
                   [38;5;8msrc/foo/filename.stories.ts                                         [33m  [ignore][0m
                   [38;5;8msrc/foo/filename.test.ts                                            [33m  [ignore][0m
@@ -151,8 +153,17 @@ describe('dualExport', () => {
                   [38;5;8msrc/index.stories.ts                                                [33m  [ignore][0m
                   [38;5;8msrc/index.test.ts                                                   [33m  [ignore][0m
                   src/index.ts                                                        [32m   [build][0m
-                
+
             `)
+        })
+
+        test('transpile to target', async() => {
+            expect(String(await readFile(`${exampleDir}/dist/esm/es2020.js`)))
+                .not.toContain('??')
+            expect(String(await readFile(`${exampleDir}/dist/esm/es2020.js`)))
+                .not.toContain('?.')
+            expect(String(await readFile(`${exampleDir}/dist/esm/es2021.js`)))
+                .not.toContain('??=')
         })
     })
 })
@@ -178,7 +189,7 @@ describe('default build', () => {
     })
 
     test('build without error', async () => {
-        await run('ts-build2', ['--exportsMap', 'foo/*,bar:some/other/file'], scriptsConfig)
+        await run('ts-build2', ['--exportsMap', 'foo/*,bar:some/other/file', '--target', 'es2020'], scriptsConfig)
         buildComplete = true
         expect.assertions(0)
     }, 10000)
@@ -240,6 +251,8 @@ describe('default build', () => {
         test('report matches and ignored files to console', () => {
             expect((process.stdout.write as jest.MockedFunction<typeof process.stdout.write>).mock.calls.map((c) => c[0]).join('')).toMatchInlineSnapshot(`
                 build files:
+                  src/es2020.ts                                                       [32m   [build][0m
+                  src/es2021.ts                                                       [32m   [build][0m
                   [38;5;8msrc/foo/filename.spec.ts                                            [33m  [ignore][0m
                   [38;5;8msrc/foo/filename.stories.ts                                         [33m  [ignore][0m
                   [38;5;8msrc/foo/filename.test.ts                                            [33m  [ignore][0m
@@ -250,6 +263,15 @@ describe('default build', () => {
                   src/index.ts                                                        [32m   [build][0m
 
             `)
+        })
+
+        test('transpile to target', async () => {
+            expect(String(await readFile(`${exampleDir}/dist/es2020.js`)))
+                .toContain('??')
+            expect(String(await readFile(`${exampleDir}/dist/es2020.js`)))
+                .toContain('?.')
+            expect(String(await readFile(`${exampleDir}/dist/es2021.js`)))
+                .not.toContain('??=')
         })
     })
 })

@@ -7,6 +7,7 @@ import { swc, PluginOptions } from 'rollup-plugin-swc3'
 import { params, script, stringMap } from 'shared-scripts'
 import { getTscBin, globPromise, runChild } from './util'
 import { PackageJson } from './package.json'
+import { JscTarget } from '@swc/core'
 
 type ExportTypes = 'esm' | 'cjs' | 'types'
 
@@ -31,6 +32,10 @@ export const tsBuild2: script = {
         cjs: {
             description: 'Add CommonJS modules',
         },
+        target: {
+            description: 'ECMAScript target version',
+            value: ['version'],
+        },
     },
     run: async (params: params) => {
         const outDir = (params.options?.outDir as stringMap)?.dir ?? 'dist'
@@ -38,6 +43,7 @@ export const tsBuild2: script = {
         const main = (params.options.main as stringMap)?.file ?? 'index'
         const exportsMap = ((params.options.exportsMap as stringMap)?.paths ?? '').split(',').filter(Boolean)
         const cjs = Boolean(params.options.cjs ?? false)
+        const target = (params.options.target as stringMap)?.version ?? 'es2022'
 
         const packageJson = JSON.parse(String(fs.readFileSync(packageJsonFile))) as PackageJson
 
@@ -98,7 +104,7 @@ export const tsBuild2: script = {
                     // There is a bug in the type declarations -.-
                     ] as unknown as PluginOptions['exclude'],
                     jsc: {
-                        target: 'es2022',
+                        target: target as JscTarget,
                     },
                 }),
             ],
