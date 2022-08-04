@@ -1,13 +1,12 @@
 import fs from 'fs'
-import path from 'path'
 import process from 'process'
-import tmp from 'tmp'
 import { InputOptions, OutputOptions, rollup } from 'rollup'
 import { swc, PluginOptions } from 'rollup-plugin-swc3'
 import { params, script, stringMap } from 'shared-scripts'
-import { getTscBin, globPromise, runChild } from './util'
-import { PackageJson } from './package.json'
+import { globPromise } from '../util'
+import { PackageJson } from '../package.json'
 import { JscTarget } from '@swc/core'
+import { buildTypes } from './buildTypes'
 
 type ExportTypes = 'esm' | 'cjs' | 'types'
 
@@ -26,7 +25,7 @@ export const tsBuild2: script = {
             value: ['file'],
         },
         exportsMap: {
-            description: 'Create an exportsMap (comma-separated list of paths)',
+            description: 'Add paths to exportsMap (comma-separated list of paths)',
             value: ['paths'],
         },
         cjs: {
@@ -117,7 +116,7 @@ export const tsBuild2: script = {
 
         await buildTypes('tsconfig.json', paths.types, buildFiles)
 
-        updatePackageJson(packageJsonFile, outDir, main, exportsMap, paths, isMultiBuild, cjs)
+        updatePackageJson(packageJsonFile, main, exportsMap, paths, isMultiBuild, cjs)
     },
 }
 
@@ -142,7 +141,6 @@ function writePackageType(
 
 function updatePackageJson(
     packageJsonFile: string,
-    outDir: string,
     main: string,
     exportsMap: string[],
     paths: { [k in ExportTypes]: string },
@@ -164,15 +162,23 @@ function updatePackageJson(
     newPackageJson.module = `./${paths.esm}/${main}.js`
     newPackageJson.types = `./${paths.types}/${main}.d.ts`
 
-    if (exportsMap.length > 0) {
-        newPackageJson.exports = Object.fromEntries([
+    if (exportsMap.length > 0 || isMultiBuild) {
+        const newPackageJsonExports = [
             createExport(['.', main].join(':'), paths, hasCjs),
+        ]
 
-            // Always allow deep import from dist as workaround
-            [`./${outDir}/*`, `./${outDir}/*.js`] as const,
+        // Always allow deep import from dist as workaround
+        newPackageJsonExports.push(
+            [`./${paths.cjs}/*`, `./${paths.cjs}/*`],
+            [`./${paths.esm}/*`, `./${paths.esm}/*`],
+        )
 
+        newPackageJsonExports.push(
             ...exportsMap.map(path => createExport(path, paths, hasCjs)),
-        ])
+        )
+
+        newPackageJson.exports = Object.fromEntries(newPackageJsonExports)
+
         if (isMultiBuild) {
             newPackageJson.typesVersions = {
                 '*': Object.fromEntries([
@@ -180,8 +186,8 @@ function updatePackageJson(
                     [`${paths.types}/*`, [`./${paths.types}/*`]] as [string, string[]],
 
                     // Map deep imports from dist
-                    [`${paths.cjs}/*`, [`./${paths.types}/*.d.ts`]] as [string, string[]],
-                    [`${paths.esm}/*`, [`./${paths.types}/*.d.ts`]] as [string, string[]],
+                    [`${paths.cjs}/*.js`, [`./${paths.types}/*.d.ts`]] as [string, string[]],
+                    [`${paths.esm}/*.js`, [`./${paths.types}/*.d.ts`]] as [string, string[]],
 
                     // Map named modules
                     ...mapTypesExports(paths.types, exportsMap),
@@ -230,27 +236,3 @@ function mapTypesExports(
     return typesMappings
 }
 
-async function buildTypes(
-    tsconfigFile: string,
-    typesPath: string,
-    files: string[],
-) {
-    const tmpFile = tmp.fileSync({
-        tmpdir: path.dirname(tsconfigFile),
-        prefix: 'tsconfig.tmp',
-    })
-    fs.writeFileSync(tmpFile.name, JSON.stringify({
-        extends: path.resolve(tsconfigFile),
-        compilerOptions: {
-            noEmit: false,
-            declaration: true,
-            emitDeclarationOnly: true,
-        },
-        include: files.map(f => path.resolve(f)),
-    }))
-
-    await runChild(getTscBin(), [
-        '--project', tmpFile.name,
-        '--outDir', typesPath,
-    ]).finally(tmpFile.removeCallback)
-}

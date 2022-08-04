@@ -1,5 +1,5 @@
 module.exports = {
     extends: [
-        require.resolve('../src/config.ts'),
+        require.resolve('../scripts.config.js'),
     ],
 }

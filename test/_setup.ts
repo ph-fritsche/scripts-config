@@ -7,8 +7,19 @@ jest.mock('process', () => {
         ...realProcess,
         argv: [],
         stdin: { read: jest.fn() },
-        stdout: { write: jest.fn() },
-        stderr: { write: jest.fn() },
-        exit: jest.fn(),
+        stderr: {
+            ...realProcess.stderr,
+            write: jest.fn(),
+        },
+        once: jest.fn(),
+        off: jest.fn(),
+        stdout: {
+            ...realProcess.stdout,
+            columns: 80,
+            write: jest.fn(),
+        },
+        exit: (code: number) => {
+            throw new Error(String(code))
+        },
     })
 })

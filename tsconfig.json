@@ -20,6 +20,8 @@
     "include": [
         "src",
         "test",
+        "example",
+        "example-consumer",
     ],
     "exclude": [
         "node_modules",
