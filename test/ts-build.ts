@@ -44,6 +44,8 @@ test('export declarations', () => {
 test('update package.json', async () => {
     expect(String(await readFile(`${exampleDir}/package.json`))).toMatchInlineSnapshot(`
 {
+    "name": "example",
+    "private": "true",
     "scripts": {
         "scripts": "../node_modules/.bin/scripts",
         "tsc": "../node_modules/.bin/tsc"
