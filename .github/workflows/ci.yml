@@ -35,7 +35,7 @@ jobs:
     - uses: actions/checkout@v2
     - uses: bahmutov/npm-install@v1
     - run: yarn build
-    - uses: ph-fritsche/action-release@v1
+    - uses: ph-fritsche/action-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
