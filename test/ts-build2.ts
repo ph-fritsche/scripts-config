@@ -1,82 +1,48 @@
-import { realpathSync, existsSync, readFileSync } from 'fs'
-import { readFile, rm, writeFile } from 'fs/promises'
+import { existsSync, readFileSync } from 'fs'
+import { readFile } from 'fs/promises'
 import { chdir } from 'process'
 import { run } from 'shared-scripts'
 import scriptsConfig from '../src/config'
 import process from 'process'
-import spawn from 'cross-spawn'
 import '../src/ts-build2/buildTypes'
 import { buildTypes } from '../src/ts-build2/buildTypes'
 import { PackageJson } from '../src/package.json'
+import { runChild, testOnExample } from './_helper'
+import { getTscBin } from '../src/util'
 
 // accelerate testing
-const mockBuildTsc = {skip: false}
+const mockBuildTsc = {skip: [] as string[]}
 jest.mock('../src/ts-build2/buildTypes', () => ({
     buildTypes: (...args: Parameters<typeof buildTypes>) => {
-        return mockBuildTsc.skip
+        const dir = process.cwd()
+        return mockBuildTsc.skip.some(d => dir.startsWith(d))
             ? Promise.resolve()
             : jest.requireActual<{buildTypes: typeof buildTypes}>('../src/ts-build2/buildTypes').buildTypes(...args)
     },
 }))
 
-const exampleDir = realpathSync(`${__dirname}/../example`)
-const exampleConsumerDir = realpathSync(`${__dirname}/../example-consumer`)
-
-/* Run file per `node` */
-function runConsumer(cmd: string, ...args: string[]) {
-    return new Promise<{
-        code: number
-        output: string
-        errput: string
-    }>((resolve, reject) => {
-        const output: Buffer[] = []
-        const errput: Buffer[] = []
-
-        const child = spawn(cmd, args, {cwd: exampleConsumerDir})
-
-        child.stdout?.on('data', (b: Buffer) => output.push(b))
-        child.stderr?.on('data', (b: Buffer) => errput.push(b))
-        child.once('exit', (code, signal) => {
-            if (signal !== null) {
-                throw new Error(`${cmd} ${JSON.stringify(args)} aborted with signal "${signal}"`)
-            }
-            (code ? reject : resolve)({
-                code: Number(code),
-                output: String(Buffer.concat(output)).trim(),
-                errput: String(Buffer.concat(errput)).trim(),
-            })
-        })
-    })
-}
-
 function testOnBuild(
+    dir: string,
     buildArgs: string[],
-    tests: () => void,
+    tests: (p: {
+        getBuildOutput: () => string
+        getBuildErrput: () => string
+    }) => void,
 ) {
     let buildComplete = false
-    let originalPackageJson: Buffer
-
-    beforeAll(() => {
-        (process.stdout.write as jest.MockedFunction<typeof process.stdout.write>).mockClear()
-    })
-
-    beforeAll(async () => {
-        await rm(`${exampleDir}/dist`, { recursive: true, force: true })
-
-        originalPackageJson = await readFile(`${exampleDir}/package.json`)
-
-        chdir(__dirname + '/../example')
-    })
-
-    afterAll(async () => {
-        await writeFile(`${exampleDir}/package.json`, originalPackageJson)
-    })
+    const output: Buffer[] = []
+    const errput: Buffer[] = []
+    const out = Object.setPrototypeOf({}, process.stdout) as NodeJS.WriteStream
+    const err = Object.setPrototypeOf({}, process.stderr) as NodeJS.WriteStream
+    out.write = s => !!output.push(Buffer.from(s))
+    err.write = s => !!errput.push(Buffer.from(s))
 
     test('build without error', async () => {
-        await run('ts-build2', buildArgs, scriptsConfig)
+        chdir(dir)
+        await run('ts-build2', buildArgs, scriptsConfig, {out, err})
         buildComplete = true
         expect.assertions(0)
-    }, 10000)
+    }, 20000)
 
     describe('assert on build', () => {
         beforeEach(() => {
@@ -85,7 +51,10 @@ function testOnBuild(
             }
         })
 
-        tests()
+        tests({
+            getBuildOutput: () => String(Buffer.concat(output)),
+            getBuildErrput: () => String(Buffer.concat(errput)),
+        })
     })
 }
 
@@ -93,12 +62,12 @@ describe.each([
     [
         ['--cjs', '--exportsMap', 'foo/*,bar:some/other/file'],
         {
-            'main.cjs': `per main: ${exampleDir}/dist/cjs/foo/filename.js`,
-            'main.mjs': `per main: ${exampleDir}/dist/esm/foo/filename.js`,
-            'sub.cjs': `per submodule: ${exampleDir}/dist/cjs/foo/filename.js`,
-            'sub.mjs': `per submodule: ${exampleDir}/dist/esm/foo/filename.js`,
-            'deep-cjs.cjs': `per dist: ${exampleDir}/dist/cjs/foo/filename.js`,
-            'deep-esm.mjs': `per dist: ${exampleDir}/dist/esm/foo/filename.js`,
+            'main.cjs': `per main: $exampleDir/dist/cjs/foo/filename.js`,
+            'main.mjs': `per main: $exampleDir/dist/esm/foo/filename.js`,
+            'sub.cjs': `per submodule: $exampleDir/dist/cjs/foo/filename.js`,
+            'sub.mjs': `per submodule: $exampleDir/dist/esm/foo/filename.js`,
+            'deep-cjs.cjs': `per dist: $exampleDir/dist/cjs/foo/filename.js`,
+            'deep-esm.mjs': `per dist: $exampleDir/dist/esm/foo/filename.js`,
             'deep.mjs': new Error('PATH_NOT_EXPORTED'),
         },
     ],
@@ -106,23 +75,23 @@ describe.each([
         ['--exportsMap', 'foo/*,bar:some/other/file'],
         {
             'main.cjs': new Error('REQUIRE_ESM'),
-            'main.mjs': `per main: ${exampleDir}/dist/foo/filename.js`,
+            'main.mjs': `per main: $exampleDir/dist/foo/filename.js`,
             'sub.cjs': new Error('REQUIRE_ESM'),
-            'sub.mjs': `per submodule: ${exampleDir}/dist/foo/filename.js`,
+            'sub.mjs': `per submodule: $exampleDir/dist/foo/filename.js`,
             'deep-cjs.cjs': new Error('NOT_FOUND'),
             'deep-esm.mjs': new Error('NOT_FOUND'),
-            'deep.mjs': `per dist: ${exampleDir}/dist/foo/filename.js`,
+            'deep.mjs': `per dist: $exampleDir/dist/foo/filename.js`,
         },
     ],
     [
         ['--cjs'],
         {
-            'main.cjs': `per main: ${exampleDir}/dist/cjs/foo/filename.js`,
-            'main.mjs': `per main: ${exampleDir}/dist/esm/foo/filename.js`,
+            'main.cjs': `per main: $exampleDir/dist/cjs/foo/filename.js`,
+            'main.mjs': `per main: $exampleDir/dist/esm/foo/filename.js`,
             'sub.cjs': new Error('PATH_NOT_EXPORTED'),
             'sub.mjs': new Error('PATH_NOT_EXPORTED'),
-            'deep-cjs.cjs': `per dist: ${exampleDir}/dist/cjs/foo/filename.js`,
-            'deep-esm.mjs': `per dist: ${exampleDir}/dist/esm/foo/filename.js`,
+            'deep-cjs.cjs': `per dist: $exampleDir/dist/cjs/foo/filename.js`,
+            'deep-esm.mjs': `per dist: $exampleDir/dist/esm/foo/filename.js`,
             'deep.mjs': new Error('PATH_NOT_EXPORTED'),
         },
     ],
@@ -130,27 +99,27 @@ describe.each([
         [],
         {
             'main.cjs': new Error('REQUIRE_ESM'),
-            'main.mjs': `per main: ${exampleDir}/dist/foo/filename.js`,
+            'main.mjs': `per main: $exampleDir/dist/foo/filename.js`,
             'sub.cjs': new Error('NOT_FOUND'),
             'sub.mjs': new Error('NOT_FOUND'),
             'deep-cjs.cjs': new Error('NOT_FOUND'),
             'deep-esm.mjs': new Error('NOT_FOUND'),
-            'deep.mjs': `per dist: ${exampleDir}/dist/foo/filename.js`,
+            'deep.mjs': `per dist: $exampleDir/dist/foo/filename.js`,
         },
     ],
-])('correct module exports: %j', (args, consumers: Record<string, string|Error>) => {
-    mockBuildTsc.skip = true
-    testOnBuild(args, () => {
+])('export modules: %j', (args, consumers: Record<string, string|Error>) => void testOnExample((dir) => {
+    mockBuildTsc.skip.push(dir)
+    testOnBuild(`${dir}/example`, args, () => {
         test.each(Object.entries(consumers))('consume build: %s', async (file, expected) => {
-            await expect(runConsumer('node', file))[
+            await expect(runChild(`${dir}/consumer`, 'node', file).promise)[
                 expected instanceof Error ? 'rejects' : 'resolves'
             ].toHaveProperty(
                 expected instanceof Error ? 'errput' : 'output',
-                expect.stringMatching(expected instanceof Error ? expected.message : expected),
+                expect.stringMatching(expected instanceof Error ? expected.message : expected.replace('$exampleDir', `${dir}/example`)),
             )
         })
     })
-})
+}))
 
 describe.each([
     [
@@ -173,13 +142,13 @@ describe.each([
             '??=': true,
         },
     ],
-])('transpile to target: %s', (target, features) => {
-    mockBuildTsc.skip = true
+])('transpile to target: %s', (target, features) => void testOnExample(dir => {
+    mockBuildTsc.skip.push(dir)
     function expectFeature(file: string, token: keyof typeof features) {
-        const expectation = expect(readFileSync(`${exampleDir}/dist/${file}`))
+        const expectation = expect(readFileSync(`${dir}/example/dist/${file}`))
         ;(features[token] ? expectation : expectation.not).toContain(token)
     }
-    testOnBuild(target === 'default' ? [] : ['--target', target], () => {
+    testOnBuild(`${dir}/example`, target === 'default' ? [] : ['--target', target], () => {
         // eslint-disable-next-line jest/expect-expect
         test('transpile language feature', () => {
             expectFeature('es2020.js', '??')
@@ -187,14 +156,13 @@ describe.each([
             expectFeature('es2021.js', '??=')
         })
     })
-})
+}))
 
-describe('configure and report', () => {
-    mockBuildTsc.skip = false
+describe('configure accepted dual-build', () => void testOnExample(dir => {
     const args = ['--cjs', '--exportsMap', 'foo/*,bar:some/other/file', '--target', 'es5']
-    testOnBuild(args, () => {
+    testOnBuild(`${dir}/example`, args, ({getBuildOutput}) => {
         test('report matches and ignored files to console', () => {
-            expect((process.stdout.write as jest.MockedFunction<typeof process.stdout.write>).mock.calls.map((c) => c[0]).join('')).toMatchInlineSnapshot(`
+            expect(getBuildOutput()).toMatchInlineSnapshot(`
                 build files:
                   src/es2020.ts                                                       [32m   [build][0m
                   src/es2021.ts                                                       [32m   [build][0m
@@ -215,22 +183,25 @@ describe('configure and report', () => {
         })
 
         test('update package.json', async () => {
-            const packageJson = JSON.parse(String(await readFile(`${exampleDir}/package.json`))) as PackageJson
+            const packageJson = JSON.parse(String(await readFile(`${dir}/example/package.json`))) as PackageJson
             expect(packageJson).toHaveProperty('main', './dist/cjs/index.js')
             expect(packageJson).toHaveProperty('module', './dist/esm/index.js')
             expect(packageJson).toHaveProperty('types', './dist/types/index.d.ts')
             expect(packageJson).toHaveProperty('exports', {
                 '.': {
+                    'types': './dist/types/index.d.ts',
                     'require': './dist/cjs/index.js',
                     'default': './dist/esm/index.js',
                 },
                 './dist/cjs/*': './dist/cjs/*',
                 './dist/esm/*': './dist/esm/*',
                 './foo/*': {
+                    'types': './dist/types/foo/*.d.ts',
                     'require': './dist/cjs/foo/*.js',
                     'default': './dist/esm/foo/*.js',
                 },
                 './bar': {
+                    'types': './dist/types/some/other/file.d.ts',
                     'require': './dist/cjs/some/other/file.js',
                     'default': './dist/esm/some/other/file.js',
                 },
@@ -260,17 +231,41 @@ describe('configure and report', () => {
         })
 
         test('exclude tests and stories per default', () => {
-            expect(existsSync(`${exampleDir}/dist/index.spec.js`)).toBe(false)
-            expect(existsSync(`${exampleDir}/dist/index.stories.js`)).toBe(false)
-            expect(existsSync(`${exampleDir}/dist/index.test.js`)).toBe(false)
+            expect(existsSync(`${dir}/example/dist/index.spec.js`)).toBe(false)
+            expect(existsSync(`${dir}/example/dist/index.stories.js`)).toBe(false)
+            expect(existsSync(`${dir}/example/dist/index.test.js`)).toBe(false)
 
-            expect(existsSync(`${exampleDir}/dist/esm/foo/filename.test.js`)).toBe(false)
+            expect(existsSync(`${dir}/example/dist/esm/foo/filename.test.js`)).toBe(false)
 
-            expect(existsSync(`${exampleDir}/dist/types/index.test.d.ts`)).toBe(false)
+            expect(existsSync(`${dir}/example/dist/types/index.test.d.ts`)).toBe(false)
         })
 
-        test('output is accepted by tsc: %s', async () => {
-            await expect(runConsumer('tsc', '--noEmit', 'main.ts', 'sub.ts', 'deep-esm.ts')).resolves.toEqual({code: 0, output: '', errput: ''})
-        }, 10000)
+        test('output is accepted by tsc', async () => {
+            const tscBin = getTscBin(`${dir}/consumer`)
+            await expect(runChild(
+                `${dir}/consumer`,
+                tscBin,
+                '--strict',
+                '--noEmit',
+                'main.ts',
+                'sub.ts',
+                'deep-esm.ts',
+            ).promise).resolves.toEqual({code: 0, output: '', errput: ''})
+        }, 25000)
+
+        test('output is accepted by tsc --moduleResolution nodenext', async () => {
+            const tscBin = getTscBin(`${dir}/consumer`)
+            await expect(runChild(
+                `${dir}/consumer`,
+                tscBin,
+                '--strict',
+                '--noEmit',
+                '--moduleResolution',
+                'nodenext',
+                'main.ts',
+                'sub.ts',
+                'deep-esm.ts',
+            ).promise).resolves.toEqual({code: 0, output: '', errput: ''})
+        }, 25000)
     })
-})
+}))

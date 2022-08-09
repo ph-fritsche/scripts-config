@@ -2,8 +2,8 @@ import fs from 'fs'
 import path from 'path'
 import { sync } from 'cross-spawn'
 
-export function getTscBin(): string {
-    let d = process.cwd()
+export function getTscBin(dir = process.cwd()): string {
+    let d = dir
     for(;;) {
         if (fs.existsSync(`${d}/node_modules/.bin/tsc`)) {
             return `${d}/node_modules/.bin/tsc`

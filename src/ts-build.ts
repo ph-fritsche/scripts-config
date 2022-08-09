@@ -1,7 +1,7 @@
 import fs from 'fs'
 import { params, script, stringMap } from 'shared-scripts'
 import { PackageJson } from './package.json'
-import { execScript } from './util'
+import { getTscBin, runChild } from './util'
 
 export const tsBuild: script = {
     options: {
@@ -22,36 +22,37 @@ export const tsBuild: script = {
             value: ['paths'],
         },
     },
-    run: (params: params) => {
+    run: async (params: params) => {
         const outDir = (params.options?.outDir as stringMap)?.dir ?? 'dist'
         const packageJsonFile = (params.options.packageJson as stringMap)?.file ?? 'package.json'
         const main = (params.options.main as stringMap)?.file ?? 'index'
         const exportsMap = ((params.options.exportsMap as stringMap)?.paths ?? '').split(',').filter(Boolean)
 
-        execScript(['tsc',
-            '--outDir', `${outDir}/esm`,
-            '--target', 'ES2020',
-            '--module', 'ES2020',
-            '--sourceMap', 'true',
-            '--declaration', 'false',
+        const tscBin = getTscBin()
+        await Promise.all([
+            runChild(tscBin, [
+                '--outDir', `${outDir}/esm`,
+                '--target', 'ES2020',
+                '--module', 'ES2020',
+                '--sourceMap', 'true',
+                '--declaration', 'false',
+            ]),
+            runChild(tscBin, [
+                '--outDir', `${outDir}/cjs`,
+                '--target', 'ES5',
+                '--module', 'CommonJS',
+                '--sourceMap', 'true',
+                '--declaration', 'false',
+            ]),
+            runChild(tscBin, [
+                '--outDir', `${outDir}/types`,
+                '--declaration', 'true',
+                '--declarationMap', 'true',
+                '--emitDeclarationOnly',
+            ]),
         ])
         writePackageType(`${outDir}/esm/package.json`, 'module')
-
-        execScript(['tsc',
-            '--outDir', `${outDir}/cjs`,
-            '--target', 'ES5',
-            '--module', 'CommonJS',
-            '--sourceMap', 'true',
-            '--declaration', 'false',
-        ])
         writePackageType(`${outDir}/cjs/package.json`, 'commonjs')
-
-        execScript(['tsc',
-            '--outDir', `${outDir}/types`,
-            '--declaration', 'true',
-            '--declarationMap', 'true',
-            '--emitDeclarationOnly',
-        ])
 
         updatePackageJson(packageJsonFile, outDir, main, exportsMap)
     },

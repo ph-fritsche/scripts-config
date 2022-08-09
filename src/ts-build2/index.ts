@@ -1,8 +1,7 @@
 import fs from 'fs'
-import process from 'process'
 import { InputOptions, OutputOptions, rollup } from 'rollup'
 import { swc, PluginOptions } from 'rollup-plugin-swc3'
-import { params, script, stringMap } from 'shared-scripts'
+import { params, script, streams, stringMap } from 'shared-scripts'
 import { globPromise } from '../util'
 import { PackageJson } from '../package.json'
 import { JscTarget } from '@swc/core'
@@ -36,7 +35,7 @@ export const tsBuild2: script = {
             value: ['version'],
         },
     },
-    run: async (params: params) => {
+    run: async (params: params, streams: streams) => {
         const outDir = (params.options?.outDir as stringMap)?.dir ?? 'dist'
         const packageJsonFile = (params.options.packageJson as stringMap)?.file ?? 'package.json'
         const main = (params.options.main as stringMap)?.file ?? 'index'
@@ -65,17 +64,17 @@ export const tsBuild2: script = {
             (await globPromise(filesGlob)).map(f => [f, {ignore: ignorePattern.test(f)}]),
         )
 
-        process.stdout.write(`build files:\n`)
+        streams.out.write(`build files:\n`)
         Object.entries(files).forEach(([name, {ignore}]) => {
             const prefix = '  '
             const suffix = (ignore ? '[ignore]' : '[build]').padStart(10, ' ')
-            const nameWidth = (process.stdout.columns ?? 120) - prefix.length - suffix.length
+            const nameWidth = (streams.out.columns ?? 120) - prefix.length - suffix.length
             const nameColor = ignore ? '\x1B[38;5;8m' : ''
             const suffixColor = ignore ? '\x1B[33m' : '\x1B[32m'
             const resetColor = '\x1B[0m'
             const lines = name.match(new RegExp(`.{1,${nameWidth -1}}`, 'g'))
             lines?.forEach((ln, i) => {
-                process.stdout.write([
+                streams.out.write([
                     prefix,
                     nameColor,
                     ln[i === 0 ? 'padEnd' : 'padStart'](nameWidth),
@@ -208,12 +207,13 @@ function createExport(
     hasCjs: boolean,
 ): [string, string | Record<string, string>] {
     const [exportPath, modulePath = exportPath] = path.split(':')
-    const distModule = (type: ExportTypes, p: string) => `./${paths[type]}/${p}.js`
+    const distModule = (type: ExportTypes, p: string, ext: string) => `./${paths[type]}/${p}.${ext}`
 
-    const map: Array<[string, string]> = [['default', distModule('esm', modulePath)]]
+    const map: Array<[string, string]> = [['default', distModule('esm', modulePath, 'js')]]
     if (hasCjs) {
-        map.unshift(['require', distModule('cjs', modulePath)])
+        map.unshift(['require', distModule('cjs', modulePath, 'js')])
     }
+    map.unshift(['types', distModule('types', modulePath, 'd.ts')])
 
     return [
         exportPath === '.' ? '.' : `./${exportPath}`,

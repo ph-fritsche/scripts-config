@@ -11,6 +11,7 @@ jest.mock('process', () => {
             ...realProcess.stderr,
             write: jest.fn(),
         },
+        on: jest.fn(),
         once: jest.fn(),
         off: jest.fn(),
         stdout: {

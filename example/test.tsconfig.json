@@ -1,1 +1,0 @@
-{"extends":"foo","include":["src/foo/filename.ts","src/index.ts"]}
