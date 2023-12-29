@@ -10,6 +10,15 @@ import { PackageJson } from '../src/package.json'
 import { runChild, testOnExample } from './_helper'
 import { getTscBin } from '../src/util'
 
+expect.addSnapshotSerializer({
+    print(val) {
+        return String(val)
+    },
+    test(val) {
+        return typeof val === 'string'
+    },
+})
+
 // accelerate testing
 const mockBuildTsc = {skip: [] as string[]}
 jest.mock('../src/ts-build2/buildTypes', () => ({
@@ -129,12 +138,16 @@ describe.each([
             '?.': false,
             '??=': false,
         },
+    ],
+    [
         'es2020',
         {
             '??': true,
             '?.': true,
             '??=': false,
         },
+    ],
+    [
         'default',
         {
             '??': true,
@@ -145,8 +158,12 @@ describe.each([
 ])('transpile to target: %s', (target, features) => void testOnExample(dir => {
     mockBuildTsc.skip.push(dir)
     function expectFeature(file: string, token: keyof typeof features) {
-        const expectation = expect(readFileSync(`${dir}/example/dist/${file}`))
-        ;(features[token] ? expectation : expectation.not).toContain(token)
+        const result = readFileSync(`${dir}/example/dist/${file}`, 'utf8')
+        if (features[token]) {
+            expect(result).toContain(token)
+        } else {
+            expect(result).not.toContain(token)
+        }
     }
     testOnBuild(`${dir}/example`, target === 'default' ? [] : ['--target', target], () => {
         // eslint-disable-next-line jest/expect-expect
@@ -163,19 +180,19 @@ describe('configure accepted dual-build', () => void testOnExample(dir => {
     testOnBuild(`${dir}/example`, args, ({getBuildOutput}) => {
         test('report matches and ignored files to console', () => {
             expect(getBuildOutput()).toMatchInlineSnapshot(`
-                build files:
-                  src/es2020.ts                                                       [32m   [build][0m
-                  src/es2021.ts                                                       [32m   [build][0m
-                  [38;5;8msrc/foo/filename.spec.ts                                            [33m  [ignore][0m
-                  [38;5;8msrc/foo/filename.stories.ts                                         [33m  [ignore][0m
-                  [38;5;8msrc/foo/filename.test.ts                                            [33m  [ignore][0m
-                  src/foo/filename.ts                                                 [32m   [build][0m
-                  [38;5;8msrc/index.spec.ts                                                   [33m  [ignore][0m
-                  [38;5;8msrc/index.stories.ts                                                [33m  [ignore][0m
-                  [38;5;8msrc/index.test.ts                                                   [33m  [ignore][0m
-                  src/index.ts                                                        [32m   [build][0m
+build files:
+  src/index.ts                                                        [32m   [build][0m
+  [38;5;8msrc/index.test.ts                                                   [33m  [ignore][0m
+  [38;5;8msrc/index.stories.ts                                                [33m  [ignore][0m
+  [38;5;8msrc/index.spec.ts                                                   [33m  [ignore][0m
+  src/es2021.ts                                                       [32m   [build][0m
+  src/es2020.ts                                                       [32m   [build][0m
+  src/foo/filename.ts                                                 [32m   [build][0m
+  [38;5;8msrc/foo/filename.test.ts                                            [33m  [ignore][0m
+  [38;5;8msrc/foo/filename.stories.ts                                         [33m  [ignore][0m
+  [38;5;8msrc/foo/filename.spec.ts                                            [33m  [ignore][0m
 
-            `)
+`)
         })
 
         test('export declarations', () => {
@@ -260,6 +277,8 @@ describe('configure accepted dual-build', () => void testOnExample(dir => {
                 tscBin,
                 '--strict',
                 '--noEmit',
+                '--module',
+                'nodenext',
                 '--moduleResolution',
                 'nodenext',
                 'main.ts',

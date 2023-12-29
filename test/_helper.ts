@@ -1,6 +1,6 @@
 import spawn from 'cross-spawn'
 import { existsSync, mkdirSync, realpathSync } from 'fs'
-import { cp, symlink, rm } from 'fs/promises'
+import { cp, symlink } from 'fs/promises'
 import { tmpNameSync } from 'tmp'
 
 const projectDir = realpathSync(`${__dirname}/..`)

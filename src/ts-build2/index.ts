@@ -2,7 +2,7 @@ import fs from 'fs'
 import { InputOptions, OutputOptions, rollup } from 'rollup'
 import { swc, PluginOptions } from 'rollup-plugin-swc3'
 import { params, script, streams, stringMap } from 'shared-scripts'
-import { globPromise } from '../util'
+import { glob } from 'glob'
 import { PackageJson } from '../package.json'
 import { JscTarget } from '@swc/core'
 import { buildTypes } from './buildTypes'
@@ -61,7 +61,7 @@ export const tsBuild2: script = {
         const filesGlob = 'src/**/*.{ts,tsx}'
         const ignorePattern = /\.(spec|stories|test)\.\w+$/
         const files = Object.fromEntries(
-            (await globPromise(filesGlob)).map(f => [f, {ignore: ignorePattern.test(f)}]),
+            (await glob(filesGlob)).map(f => [f, {ignore: ignorePattern.test(f)}]),
         )
 
         streams.out.write(`build files:\n`)

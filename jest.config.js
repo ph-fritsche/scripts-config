@@ -11,15 +11,11 @@ module.exports = {
         '/_.*(?<!.test.[jt]sx?)$',
     ],
     transform: {
-        '\\.([tj]sx?)$': 'ts-jest',
+        '^.+\\.(t|j)sx?$': '@swc/jest',
     },
     transformIgnorePatterns: [
-        '/node_modules/',
     ],
     setupFiles: [
         '<rootDir>/test/_setup.ts',
-    ],
-    snapshotSerializers: [
-        'jest-snapshot-serializer-raw/always',
     ],
 }
