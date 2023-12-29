@@ -1,6 +1,6 @@
 import fs from 'fs'
 import { InputOptions, OutputOptions, rollup } from 'rollup'
-import { swc, PluginOptions } from 'rollup-plugin-swc3'
+import { swc } from 'rollup-plugin-swc3'
 import { params, script, streams, stringMap } from 'shared-scripts'
 import { glob } from 'glob'
 import { PackageJson } from '../package.json'
@@ -96,11 +96,7 @@ export const tsBuild2: script = {
             ],
             plugins: [
                 swc({
-                    exclude: [
-                        /node_modules/,
-                        /\.(spec|stories)\.\w+$/,
-                    // There is a bug in the type declarations -.-
-                    ] as unknown as PluginOptions['exclude'],
+                    exclude: [],
                     jsc: {
                         target: target as JscTarget,
                     },
