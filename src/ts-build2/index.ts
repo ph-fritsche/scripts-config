@@ -167,10 +167,25 @@ function updatePackageJson(
         ]
 
         // Always allow deep import from dist as workaround
-        newPackageJsonExports.push(
-            [`./${paths.cjs}/*`, `./${paths.cjs}/*`],
-            [`./${paths.esm}/*`, `./${paths.esm}/*`],
-        )
+        const esmDeep: Record<string, string> = {
+            types: `./${paths.types}/*.d.ts`,
+            default: `./${paths.esm}/*.js`,
+        }
+        if (hasCjs) {
+            esmDeep['require'] = `./${paths.cjs}/*.js`
+            newPackageJsonExports.push([
+                `./${paths.cjs}/*.js`,
+                {
+                    types: `./${paths.types}/*.d.ts`,
+                    import: `./${paths.esm}/*.js`,
+                    default: `./${paths.cjs}/*.js`,
+                },
+            ])
+        }
+        newPackageJsonExports.push([
+            `./${paths.esm}/*.js`,
+            esmDeep,
+        ])
 
         newPackageJsonExports.push(
             ...exportsMap.map(path => createExport(path, paths, hasCjs)),

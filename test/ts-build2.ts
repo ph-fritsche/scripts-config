@@ -210,8 +210,16 @@ build files:
                     'require': './dist/cjs/index.js',
                     'default': './dist/esm/index.js',
                 },
-                './dist/cjs/*': './dist/cjs/*',
-                './dist/esm/*': './dist/esm/*',
+                './dist/cjs/*.js': {
+                    'types': './dist/types/*.d.ts',
+                    'import': './dist/esm/*.js',
+                    'default': './dist/cjs/*.js',
+                },
+                './dist/esm/*.js': {
+                    'types': './dist/types/*.d.ts',
+                    'require': './dist/cjs/*.js',
+                    'default': './dist/esm/*.js',
+                },
                 './foo/*': {
                     'types': './dist/types/foo/*.d.ts',
                     'require': './dist/cjs/foo/*.js',
