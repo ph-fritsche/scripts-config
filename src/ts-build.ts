@@ -1,7 +1,5 @@
-import fs from 'fs'
-import { params, script, stringMap } from 'shared-scripts'
-import { PackageJson } from './package.json'
-import { getTscBin, runChild } from './util'
+import { params, script } from 'shared-scripts'
+import { tsBuild2 } from './ts-build2'
 
 export const tsBuild: script = {
     options: {
@@ -22,127 +20,11 @@ export const tsBuild: script = {
             value: ['paths'],
         },
     },
-    run: async (params: params) => {
-        const outDir = (params.options?.outDir as stringMap)?.dir ?? 'dist'
-        const packageJsonFile = (params.options.packageJson as stringMap)?.file ?? 'package.json'
-        const main = (params.options.main as stringMap)?.file ?? 'index'
-        const exportsMap = ((params.options.exportsMap as stringMap)?.paths ?? '').split(',').filter(Boolean)
-
-        const tscBin = getTscBin()
-        await Promise.all([
-            runChild(tscBin, [
-                '--outDir', `${outDir}/esm`,
-                '--target', 'ES2020',
-                '--module', 'ES2020',
-                '--sourceMap', 'true',
-                '--declaration', 'false',
-            ]),
-            runChild(tscBin, [
-                '--outDir', `${outDir}/cjs`,
-                '--target', 'ES5',
-                '--module', 'CommonJS',
-                '--sourceMap', 'true',
-                '--declaration', 'false',
-            ]),
-            runChild(tscBin, [
-                '--outDir', `${outDir}/types`,
-                '--declaration', 'true',
-                '--declarationMap', 'true',
-                '--emitDeclarationOnly',
-            ]),
-        ])
-        writePackageType(`${outDir}/esm/package.json`, 'module')
-        writePackageType(`${outDir}/cjs/package.json`, 'commonjs')
-
-        updatePackageJson(packageJsonFile, outDir, main, exportsMap)
-    },
-}
-
-function writePackageType(
-    packageJsonFile: string,
-    type: 'commonjs'|'module',
-) {
-    const packageJson = { type }
-    fs.writeFileSync(packageJsonFile, JSON.stringify(packageJson, null, 2))
-}
-
-function updatePackageJson(
-    packageJsonFile: string,
-    outDir: string,
-    main: string,
-    exportsMap: string[],
-) {
-    const packageJsonString = String(fs.readFileSync(packageJsonFile))
-    const indent = packageJsonString.match(/^(\s+)/m)?.[1] || 2
-    const packageJson = JSON.parse(packageJsonString) as PackageJson
-
-    const newPackageJson = { ...packageJson }
-    delete newPackageJson.main
-    delete newPackageJson.module
-    delete newPackageJson.types
-    delete newPackageJson.exports
-    delete newPackageJson.typesVersions
-
-    newPackageJson.main = `./${outDir}/cjs/${main}.js`
-    newPackageJson.module = `./${outDir}/esm/${main}.js`
-    newPackageJson.types = `./${outDir}/types/${main}.d.ts`
-
-    if (exportsMap.length > 0) {
-        newPackageJson.exports = Object.fromEntries([
-            createExport(outDir, ['.', main].join(':')),
-
-            // Always allow deep import from dist as workaround
-            [`./${outDir}/*`, `./${outDir}/*.js`] as const,
-
-            ...exportsMap.map(path => createExport(outDir, path)),
-        ])
-        newPackageJson.typesVersions = {
-            '*': Object.fromEntries([
-                // Do not map type imports from types
-                [`${outDir}/types/*`, [`./${outDir}/types/*`]] as [string, string[]],
-
-                // Map deep imports from dist
-                [`${outDir}/cjs/*`, [`./${outDir}/types/*.d.ts`]] as [string, string[]],
-                [`${outDir}/esm/*`, [`./${outDir}/types/*.d.ts`]] as [string, string[]],
-
-                // Map named modules
-                ...mapTypesExports(outDir, exportsMap),
-
-                // Map any other module import to the types
-                ['*', ['./dist/types/*.d.ts']] as [string, string[]],
-            ]),
-        }
-    }
-
-    fs.writeFileSync(packageJsonFile, JSON.stringify(newPackageJson, null, indent))
-}
-
-function createExport(
-    outDir: string,
-    path: string,
-): [string, string | Record<string, string>] {
-    const [exportPath, modulePath = exportPath] = path.split(':')
-    const distModule = (type: string, p: string) => `./${outDir}/${type}/${p}.js`
-    return [
-        exportPath === '.' ? '.' : `./${exportPath}`,
-        {
-            'import': distModule('esm', modulePath),
-            'default': distModule('cjs', modulePath),
+    run: (params: params, streams) => tsBuild2.run({
+        ...params,
+        options: {
+            ...params.options,
+            cjs: true,
         },
-    ]
-}
-
-function mapTypesExports(
-    outDir: string,
-    exportsMap: string[],
-) {
-    const typesMappings: Array<[string, string[]]> = []
-    for(const path of exportsMap) {
-        const [exportPath, modulePath = exportPath] = path.split(':')
-        typesMappings.push([
-            exportPath,
-            [`./${outDir}/types/${modulePath}.d.ts`],
-        ])
-    }
-    return typesMappings
+    }, streams),
 }
